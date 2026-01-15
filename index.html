@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamagotchi Study Timer</title>
+    <style>
+        /* 폰트: 갈무리14 */
+        @font-face {
+            font-family: 'Galmuri14';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2506-1@1.0/Galmuri14.woff2') format('woff2');
+            font-weight: normal;
+            font-display: swap;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: transparent;
+            font-family: 'Galmuri14', sans-serif;
+            /* 텍스트 드래그 방지 */
+            user-select: none; 
+        }
+
+        /* 다마고치 본체 (달걀 모양) */
+        .tamagotchi-body {
+            width: 200px;
+            height: 240px;
+            background-color: #ffb7c5; /* 좋아하는 핑크색 */
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; /* 달걀형 곡률 */
+            border: 4px solid #333;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            padding-top: 40px;
+            box-sizing: border-box;
+        }
+
+        /* 화면 테두리 */
+        .screen-container {
+            width: 140px;
+            height: 100px;
+            background-color: #f0f0f0;
+            border: 3px solid #333;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 25px;
+            box-shadow: inset 3px 3px 5px rgba(0,0,0,0.1);
+        }
+
+        /* LCD 액정 화면 */
+        .lcd-screen {
+            width: 120px;
+            height: 80px;
+            background-color: #9cb5a2; /* 옛날 액정 느낌의 녹색 */
+            border: 2px solid #8fa694;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 픽셀 캐릭터 얼굴 */
+        .face {
+            font-size: 24px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        /* 타이머 텍스트 */
+        .timer-display {
+            font-size: 18px;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        /* 상태 텍스트 (공부중/휴식) */
+        .status-text {
+            font-size: 10px;
+            color: #333;
+            margin-top: 5px;
+            opacity: 0.7;
+        }
+
+        /* 버튼 그룹 */
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* 버튼 사이 간격 */
+            width: 100%;
+            padding-left: 5px;
+        }
+
+        .btn-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 동그란 버튼 */
+        .control-btn {
+            width: 24px;
+            height: 24px;
+            background-color: #ffe600; /* 노란색 버튼 */
+            border: 2px solid #333;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        .control-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+
+        /* 버튼 라벨 (A, B, C) */
+        .btn-label {
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 4px;
+            color: #333;
+        }
+
+        /* 장식용 고리 (상단) */
+        .loop {
+            position: absolute;
+            top: -15px;
+            width: 40px;
+            height: 20px;
+            border: 4px solid #333;
+            border-bottom: none;
+            border-radius: 20px 20px 0 0;
+            z-index: -1;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="tamagotchi-body">
+        <div class="loop"></div>
+        
+        <div class="screen-container">
+            <div class="lcd-screen">
+                <div class="face" id="face-display">(•_•)</div>
+                <div class="timer-display" id="timer">00:00:00</div>
+                <div class="status-text" id="status">READY</div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <div class="btn-wrapper">
+                <div class="control-btn" onclick="startTimer()"></div>
+                <span class="btn-label">A</span>
+            </div>
+            <div class="btn-wrapper">
+                <div class="control-btn" onclick="stopTimer()"></div>
+                <span class="btn-label">B</span>
+            </div>
+            <div class="btn-wrapper">
+                <div class="control-btn" onclick="resetTimer()"></div>
+                <span class="btn-label">C</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+        let elapsedTime = 0;
+        let timerInterval;
+        let isRunning = false;
+
+        const faceDisplay = document.getElementById('face-display');
+        const timerDisplay = document.getElementById('timer');
+        const statusDisplay = document.getElementById('status');
+
+        function updateDisplay(time) {
+            // 밀리초를 시:분:초로 변환
+            const date = new Date(time);
+            const hours = String(Math.floor(time / (1000 * 60 * 60))).padStart(2, '0');
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+            
+            timerDisplay.innerText = `${hours}:${minutes}:${seconds}`;
+        }
+
+        function startTimer() {
+            if (!isRunning) {
+                isRunning = true;
+                startTime = Date.now() - elapsedTime;
+                
+                // 1초마다 시간 갱신
+                timerInterval = setInterval(() => {
+                    elapsedTime = Date.now() - startTime;
+                    updateDisplay(elapsedTime);
+                }, 1000);
+
+                // 화면 상태 변경
+                faceDisplay.innerText = "(🔥_🔥)"; // 열공 표정
+                statusDisplay.innerText = "STUDYING...";
+            }
+        }
+
+        function stopTimer() {
+            if (isRunning) {
+                isRunning = false;
+                clearInterval(timerInterval);
+                
+                // 화면 상태 변경
+                faceDisplay.innerText = "(uwu)"; // 휴식 표정
+                statusDisplay.innerText = "PAUSED";
+            }
+        }
+
+        function resetTimer() {
+            stopTimer(); // 먼저 멈춤
+            elapsedTime = 0;
+            updateDisplay(0);
+            
+            // 화면 상태 변경
+            faceDisplay.innerText = "(•_•)"; // 기본 표정
+            statusDisplay.innerText = "READY";
+        }
+    </script>
+</body>
+</html>
